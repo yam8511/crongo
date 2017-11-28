@@ -19,8 +19,8 @@ import (
 func main() {
 	var err interface{}
 	/// 設定參數
-	envFile := flag.String("-env", ".env", "指定 env 檔案名稱")
-	jsonFile := flag.String("-json", "cron.json", "指定「排程背景工作」的 json檔案")
+	envFile := flag.String("env", ".env", "指定 env 檔案名稱")
+	jsonFile := flag.String("json", "cron.json", "指定「排程背景工作」的 json檔案")
 	flag.Parse()
 
 	/// 讀取 ENV 設定檔
