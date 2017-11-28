@@ -1,6 +1,7 @@
 package crongo
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -40,19 +41,21 @@ func (shell *Shell) Run() {
 	err := cmd.Start()
 	// 如果有錯誤，則結束程式並且印出錯誤訊息
 	if err != nil {
-		log.Fatalf("[Error] Command: <%s> start with error %v\n", shell.Name, err)
+		newError := fmt.Sprintf("[Error] Command:〈 %s 〉start with error %v\n", shell.Name, err)
+		panic(newError)
 	}
 
 	// 記下程序的PID
 	shell.Pids = append(shell.Pids, cmd.Process.Pid)
 
 	// Debug用
-	// log.Println("Name: ", shell.Name, " \nPID:", shell.Pids)
+	log.Println("[Info] Name: ", shell.Name, " \nPID:", shell.Pids)
 
 	// 等待 command 執行結束
 	err = cmd.Wait()
 	if err != nil {
-		log.Fatalf("[Error] Command: <%s> wait with error %v\n", shell.Name, err)
+		newError := fmt.Sprintf("[Error] Command:〈 %s 〉wait with error %v\n", shell.Name, err)
+		panic(newError)
 	}
 
 	// 清除該程序的PID
@@ -62,6 +65,5 @@ func (shell *Shell) Run() {
 	}
 
 	// Debug用
-	// log.Println("Name: ", shell.Name, " \nPID:", shell.Pids)
-	log.Printf("[Info] Command: <%s> finished with error: %v\n", shell.Name, err)
+	log.Printf("[Info] Command:〈 %s 〉finished with error: %v\n", shell.Name, err)
 }
