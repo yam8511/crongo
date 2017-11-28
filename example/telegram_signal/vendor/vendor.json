@@ -33,16 +33,21 @@
 			"revisionTime": "2017-09-12T11:55:53Z"
 		},
 		{
-			"checksumSHA1": "KNSdc6rpwFZ5rSNJs5yq3t3lJgM=",
+			"checksumSHA1": "CRft+dADn8WtNShBwnE6DlV5XRg=",
 			"path": "github.com/yam8511/crongo",
-			"revision": "30c1d153c019dfdb5d2a0165fd19aa5904d67bb6",
-			"revisionTime": "2017-11-27T16:54:54Z"
+			"revision": "75aba3fb84bd8108c7c7f1d3212d7f5b43604ddb",
+			"revisionTime": "2017-11-28T02:53:22Z"
 		},
 		{
 			"checksumSHA1": "CzLpoHWYgSP+mT3bcW/jt8epp5I=",
 			"path": "gopkg.in/robfig/cron.v2",
 			"revision": "be2e0b0deed5a68ffee390b4583a13aff8321535",
 			"revisionTime": "2015-01-07T22:02:07Z"
+		},
+		{
+			"checksumSHA1": "XfhJ+d8Z4RKTgnevVhKxgDf1HRk=",
+			"path": "sync",
+			"revision": ""
 		}
 	],
 	"rootPath": "github.com/yam8511/crongo/example/telegram_signal"

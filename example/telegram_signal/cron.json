@@ -1,0 +1,13 @@
+[{
+    "name": "Zuolar-Touch",
+    "cron": "*/1 * * * * *",
+    "command": "touch",
+    "args": ["zz"],
+    "overlapping": false
+}, {
+    "name": "Zuolar-Remove",
+    "cron": "*/3 * * * * *",
+    "command": "rm",
+    "args": ["zz"],
+    "overlapping": false
+}]

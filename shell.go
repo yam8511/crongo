@@ -49,7 +49,7 @@ func (shell *Shell) Run() {
 	shell.Pids = append(shell.Pids, cmd.Process.Pid)
 
 	// Debug用
-	log.Println("[Info] Name: ", shell.Name, " \nPID:", shell.Pids)
+	log.Println("[Info] Name:", shell.Name, ", PID:", shell.Pids)
 
 	// 等待 command 執行結束
 	err = cmd.Wait()
