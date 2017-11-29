@@ -17,12 +17,23 @@ func main() {
 	schdule := crongo.NewSchedule()
 	one := schdule.NewShell(
 		"zuolar",
-		"*/2 * * * * *",
-		"touch",
-		[]string{time.Now().String()},
+		"* * * * * *",
+		"sleep",
+		[]string{"3"},
 		false,
+		true,
+	)
+	twice := schdule.NewShell(
+		"snoopy",
+		"* * * * * *",
+		"sleep",
+		[]string{"3"},
+		true,
+		true,
 	)
 	schdule.AddMission(one.Cron, one)
+	schdule.AddMission(twice.Cron, twice)
 	schdule.Run()
-	select {}
+	time.Sleep(time.Second * 10)
+	schdule.Suspend()
 }

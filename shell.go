@@ -21,10 +21,16 @@ type Shell struct {
 	Overlapping bool `json:"overlapping"`
 	// 已執行的PIDs
 	Pids []int `json:"pids"`
+	// 是否啟動
+	Enable bool `json:"enable"`
 }
 
 // Run : 執行任務
 func (shell *Shell) Run() {
+	// 若任務沒有啟動，則不執行
+	if !shell.Enable {
+		return
+	}
 	// 若 Overlapping is False, 先檢查有沒有已經執行的程序
 	// 若已經有執行的程序，則不執行
 	if !shell.Overlapping && len(shell.Pids) > 0 {
@@ -41,7 +47,7 @@ func (shell *Shell) Run() {
 	err := cmd.Start()
 	// 如果有錯誤，則結束程式並且印出錯誤訊息
 	if err != nil {
-		newError := fmt.Sprintf("[Error] Command:〈 %s 〉start with error %v\n", shell.Name, err)
+		newError := fmt.Sprintf("[Error] Command:〈 %s 〉Start with error %v\n", shell.Name, err)
 		panic(newError)
 	}
 
@@ -54,7 +60,7 @@ func (shell *Shell) Run() {
 	// 等待 command 執行結束
 	err = cmd.Wait()
 	if err != nil {
-		newError := fmt.Sprintf("[Error] Command:〈 %s 〉wait with error %v\n", shell.Name, err)
+		newError := fmt.Sprintf("[Error] Command:〈 %s 〉,  PID:〈 %d 〉,Wait with error %v\n", shell.Name, cmd.Process.Pid, err)
 		panic(newError)
 	}
 
@@ -65,5 +71,20 @@ func (shell *Shell) Run() {
 	}
 
 	// Debug用
-	log.Printf("[Info] Command:〈 %s 〉finished with error: %v\n", shell.Name, err)
+	log.Printf("[OK] Command:〈 %s 〉, PID:〈 %d 〉, Finish with error: %v\n", shell.Name, cmd.Process.Pid, err)
+}
+
+// Disable : 關閉任務
+func (shell *Shell) Disable() {
+	shell.Enable = false
+}
+
+// GetPids : 取目前執行的PID
+func (shell *Shell) GetPids() []int {
+	return shell.Pids
+}
+
+// GetName : 取目前任務的名稱
+func (shell *Shell) GetName() string {
+	return shell.Name
 }
