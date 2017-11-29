@@ -49,6 +49,7 @@ func (shell *Shell) Run() {
 	// 如果有錯誤，則結束程式並且執行錯誤處理
 	if err != nil && shell.ErrorHandler != nil {
 		shell.ErrorHandler(err)
+		return
 	}
 
 	// 記下程序的PID

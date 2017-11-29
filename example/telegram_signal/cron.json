@@ -3,11 +3,13 @@
     "cron": "*/1 * * * * *",
     "command": "touch",
     "args": ["zz"],
-    "overlapping": false
+    "overlapping": false,
+    "enable": true
 }, {
     "name": "Zuolar-Remove",
     "cron": "*/3 * * * * *",
-    "command": "rm",
+    "command": "zz",
     "args": ["zz"],
-    "overlapping": false
+    "overlapping": false,
+    "enable": true
 }]

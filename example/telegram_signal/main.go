@@ -10,10 +10,11 @@ import (
 	"os/signal"
 	"strconv"
 	"syscall"
+	"time"
 
 	"github.com/joho/godotenv"
-	"github.com/tucnak/telebot"
 	"github.com/yam8511/crongo"
+	"gopkg.in/telegram-bot-api.v4"
 )
 
 func main() {
@@ -30,23 +31,41 @@ func main() {
 	// Telegram - 讀取設定檔
 	BotToken := os.Getenv("TELEGRAM_BOT_TOKEN")
 	cahtid, err := strconv.Atoi(os.Getenv("TELEGRAM_CHAT_ID"))
-	CheckErrFatal(err, "<BOT_TOKEN> 格式錯誤")
-	ChatID := int64(cahtid)
+	CheckErrFatal(err, "<TELEGRAM_BOT_TOKEN> 格式錯誤")
+	AdminChatID := int64(cahtid)
 
 	// Telegram - 建立機器人
-	AdminChat := telebot.Chat{ID: ChatID}
-	Bot, err := telebot.NewBot(BotToken)
+	Bot, err := tgbotapi.NewBotAPI(BotToken)
 	CheckErrFatal(err, "建立機器人錯誤")
+	MessageStack := map[string]time.Time{}
+	BotSendMessage := func(message string) {
+		MessageStack[message] = time.Now()
+	}
+
+	// Telegram - 定時發送訊息
+	const noticeSecond = time.Second * 60 // 幾秒鐘通知一次
+	ticker := time.NewTicker(noticeSecond)
+	go func() {
+		for range ticker.C {
+			for message, t := range MessageStack {
+				message = fmt.Sprintf("【 %s : %s 】\n時間：%s\n%s", os.Getenv("PROJECT_ENV"), os.Getenv("MACHINE_IP"), t.Format("2006-01-02 03:04:05"), message)
+				msg := tgbotapi.NewMessage(AdminChatID, message)
+				Bot.Send(msg)
+			}
+			MessageStack = map[string]time.Time{}
+		}
+	}()
 
 	// 程式結束時，通知背景已關閉
-	defer func(Bot *telebot.Bot) {
+	defer func(BotSendMessage func(string)) {
 		message := fmt.Sprintf("【 %s : %s 】 排程已關閉！", os.Getenv("PROJECT_ENV"), os.Getenv("MACHINE_IP"))
 		if err = recover(); err != nil {
 			log.Printf("[Error] %v", err)
 			message += fmt.Sprintf(" (%v)", err)
 		}
-		Bot.SendMessage(AdminChat, message, nil)
-	}(Bot)
+		msg := tgbotapi.NewMessage(AdminChatID, message)
+		Bot.Send(msg)
+	}(BotSendMessage)
 
 	/// 宣告系統信號
 	sigs := make(chan os.Signal, 1)
@@ -62,33 +81,45 @@ func main() {
 	}()
 
 	// 通知開啟背景
-	go func(Bot *telebot.Bot) {
+	go func(BotSendMessage func(string)) {
 		message := fmt.Sprintf("【 %s : %s 】 排程已開啟！", os.Getenv("PROJECT_ENV"), os.Getenv("MACHINE_IP"))
-		Bot.SendMessage(AdminChat, message, nil)
-	}(Bot)
+		msg := tgbotapi.NewMessage(AdminChatID, message)
+		Bot.Send(msg)
+	}(BotSendMessage)
 
 	// ----------- 解析「排程工作」內容 -------------
 	jobsJSON, err := ioutil.ReadFile(*jsonFile)
 	CheckErrFatal(err, "讀取〈"+(*jsonFile)+"〉錯誤")
-	missions := []crongo.Shell{}
-	json.Unmarshal(jobsJSON, &missions)
+	jsonMissions := []crongo.Shell{}
+	json.Unmarshal(jobsJSON, &jsonMissions)
 
 	// ----------- 開始排程 -------------
 	schdule := crongo.NewSchedule()
-	for _, mission := range missions {
-		one := schdule.NewShell(
+	missions := []*crongo.Shell{}
+	for _, mission := range jsonMissions {
+		missions = append(missions, schdule.NewShell(
 			mission.Name,
 			mission.Cron,
 			mission.Command,
 			mission.Args,
 			mission.Overlapping,
-		)
-		schdule.AddMission(one.Cron, one)
+			mission.IsEnable,
+			func(err error) {
+				log.Printf("【 %s : %s 】 Command:〈 %s 〉throw error %v！\n", os.Getenv("PROJECT_ENV"), os.Getenv("MACHINE_IP"), mission.Name, err)
+				message := fmt.Sprintf("【 %s : %s 】 Command:〈 %s 〉throw error %v！", os.Getenv("PROJECT_ENV"), os.Getenv("MACHINE_IP"), mission.Name, err)
+				BotSendMessage(message)
+			},
+		))
+	}
+	for _, mission := range missions {
+		schdule.AddMission(mission.Cron, mission)
 	}
 	schdule.Run()
 
-	/// 接收信號，結束程式
+	// 接收信號，先停止背景程序
 	log.Printf("[Warning] Receive Signal: %v", <-exit)
+	schdule.Suspend()
+	// 結束程式
 	log.Println("[Info] 程式結束")
 }
 

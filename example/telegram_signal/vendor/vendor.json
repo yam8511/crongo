@@ -3,46 +3,34 @@
 	"ignore": "test",
 	"package": [
 		{
-			"checksumSHA1": "GCTVJ1J/SGZstNZauuLAnTFOhGA=",
-			"path": "github.com/armon/go-radix",
-			"revision": "1fca145dffbcaa8fe914309b1ec0cfc67500fe61",
-			"revisionTime": "2017-07-27T15:54:43Z"
-		},
-		{
 			"checksumSHA1": "0cdNscA7+z4+lKF5usZYz3it/04=",
 			"path": "github.com/joho/godotenv",
-			"revision": "a79fa1e548e2c689c241d10173efd51e5d689d5b",
-			"revisionTime": "2017-09-18T06:32:59Z"
+			"revision": "6d367c18edf6ca7fd004efd6863e4c5728fa858e",
+			"revisionTime": "2017-11-10T01:03:15Z"
 		},
 		{
-			"checksumSHA1": "tWUjKyFOGJtYExocPWVYiXBYsfE=",
-			"path": "github.com/mitchellh/hashstructure",
-			"revision": "2bca23e0e452137f789efbc8610126fd8b94f73b",
-			"revisionTime": "2017-06-09T04:59:27Z"
+			"checksumSHA1": "t8jzPFIv4DNACv+cuZoigNmjPLQ=",
+			"path": "github.com/technoweenie/multipartstreamer",
+			"revision": "a90a01d73ae432e2611d178c18367fbaa13e0154",
+			"revisionTime": "2013-10-20T00:18:33Z"
 		},
 		{
-			"checksumSHA1": "rJab1YdNhQooDiBWNnt7TLWPyBU=",
-			"path": "github.com/pkg/errors",
-			"revision": "2b3a18b5f0fb6b4f9190549597d3f962c02bc5eb",
-			"revisionTime": "2017-09-10T13:46:14Z"
-		},
-		{
-			"checksumSHA1": "qwVHtlsM/vIF1rm4xEBHvAVrBH4=",
-			"path": "github.com/tucnak/telebot",
-			"revision": "00cebf376d79ee4363a11cd66fbbdf565452e0ab",
-			"revisionTime": "2017-09-12T11:55:53Z"
-		},
-		{
-			"checksumSHA1": "/hpPevPBhIlPPR3tNQuA/06BXm4=",
+			"checksumSHA1": "F3ODgfwXw/GlzhhGESPsFYBATS8=",
 			"path": "github.com/yam8511/crongo",
-			"revision": "337c390367cd01c268b759c6e18a5f1e1a489784",
-			"revisionTime": "2017-11-28T03:05:13Z"
+			"revision": "8c8a52a054993db2e7a6f9267e1dedd783b02bfd",
+			"revisionTime": "2017-11-29T18:55:46Z"
 		},
 		{
 			"checksumSHA1": "CzLpoHWYgSP+mT3bcW/jt8epp5I=",
 			"path": "gopkg.in/robfig/cron.v2",
 			"revision": "be2e0b0deed5a68ffee390b4583a13aff8321535",
 			"revisionTime": "2015-01-07T22:02:07Z"
+		},
+		{
+			"checksumSHA1": "JaRjqSc0lOpA0V7avHWBex1IY+w=",
+			"path": "gopkg.in/telegram-bot-api.v4",
+			"revision": "2022d04b94f50056a09962b1ac81cdd821d20a55",
+			"revisionTime": "2017-11-09T18:51:50Z"
 		}
 	],
 	"rootPath": "github.com/yam8511/crongo/example/telegram_signal"
