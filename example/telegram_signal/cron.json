@@ -8,7 +8,7 @@
 }, {
     "name": "Zuolar-Remove",
     "cron": "*/3 * * * * *",
-    "command": "zz",
+    "command": "rm",
     "args": ["zz"],
     "overlapping": false,
     "enable": true
