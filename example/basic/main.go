@@ -19,21 +19,23 @@ func main() {
 		"zuolar",
 		"* * * * * *",
 		"sleep",
-		[]string{"3"},
+		[]string{"1"},
 		false,
 		true,
+		nil,
 	)
 	twice := schdule.NewShell(
 		"snoopy",
 		"* * * * * *",
 		"sleep",
-		[]string{"3"},
+		[]string{"15"},
 		true,
 		true,
+		nil,
 	)
 	schdule.AddMission(one.Cron, one)
 	schdule.AddMission(twice.Cron, twice)
 	schdule.Run()
 	time.Sleep(time.Second * 10)
-	schdule.Suspend()
+	schdule.Destroy()
 }

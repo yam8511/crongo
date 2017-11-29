@@ -1,7 +1,6 @@
 package crongo
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -22,13 +21,15 @@ type Shell struct {
 	// 已執行的PIDs
 	Pids []int `json:"pids"`
 	// 是否啟動
-	Enable bool `json:"enable"`
+	IsEnable bool `json:"enable"`
+	// 錯誤處理方式
+	ErrorHandler func(error)
 }
 
 // Run : 執行任務
 func (shell *Shell) Run() {
 	// 若任務沒有啟動，則不執行
-	if !shell.Enable {
+	if !shell.IsEnable {
 		return
 	}
 	// 若 Overlapping is False, 先檢查有沒有已經執行的程序
@@ -45,10 +46,9 @@ func (shell *Shell) Run() {
 
 	// 模仿 Terminal 按下 Enter 鍵
 	err := cmd.Start()
-	// 如果有錯誤，則結束程式並且印出錯誤訊息
-	if err != nil {
-		newError := fmt.Sprintf("[Error] Command:〈 %s 〉Start with error %v\n", shell.Name, err)
-		panic(newError)
+	// 如果有錯誤，則結束程式並且執行錯誤處理
+	if err != nil && shell.ErrorHandler != nil {
+		shell.ErrorHandler(err)
 	}
 
 	// 記下程序的PID
@@ -59,9 +59,8 @@ func (shell *Shell) Run() {
 
 	// 等待 command 執行結束
 	err = cmd.Wait()
-	if err != nil {
-		newError := fmt.Sprintf("[Error] Command:〈 %s 〉,  PID:〈 %d 〉,Wait with error %v\n", shell.Name, cmd.Process.Pid, err)
-		panic(newError)
+	if err != nil && shell.ErrorHandler != nil {
+		shell.ErrorHandler(err)
 	}
 
 	// 清除該程序的PID
@@ -74,9 +73,14 @@ func (shell *Shell) Run() {
 	log.Printf("[OK] Command:〈 %s 〉, PID:〈 %d 〉, Finish with error: %v\n", shell.Name, cmd.Process.Pid, err)
 }
 
+// Enable : 開啟任務
+func (shell *Shell) Enable() {
+	shell.IsEnable = true
+}
+
 // Disable : 關閉任務
 func (shell *Shell) Disable() {
-	shell.Enable = false
+	shell.IsEnable = false
 }
 
 // GetPids : 取目前執行的PID
