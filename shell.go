@@ -43,6 +43,7 @@ func (shell *Shell) Run() {
 
 	// 載入系統的環境變數
 	cmd.Env = os.Environ()
+	cmd.Env = append(cmd.Env, "ALIAS="+shell.Name)
 
 	// 模仿 Terminal 按下 Enter 鍵
 	err := cmd.Start()
