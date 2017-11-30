@@ -90,28 +90,18 @@ func main() {
 	// ----------- 解析「排程工作」內容 -------------
 	jobsJSON, err := ioutil.ReadFile(*jsonFile)
 	CheckErrFatal(err, "讀取〈"+(*jsonFile)+"〉錯誤")
-	jsonMissions := []crongo.Shell{}
-	json.Unmarshal(jobsJSON, &jsonMissions)
+	missions := []*crongo.Shell{}
+	json.Unmarshal(jobsJSON, &missions)
 
 	// ----------- 開始排程 -------------
 	schdule := crongo.NewSchedule()
-	missions := []*crongo.Shell{}
-	for _, mission := range jsonMissions {
-		missions = append(missions, schdule.NewShell(
-			mission.Name,
-			mission.Cron,
-			mission.Command,
-			mission.Args,
-			mission.Overlapping,
-			mission.IsEnable,
-			func(err error) {
-				log.Printf("【 %s : %s 】 Command:〈 %s 〉throw error %v！\n", os.Getenv("PROJECT_ENV"), os.Getenv("MACHINE_IP"), mission.Name, err)
-				message := fmt.Sprintf("【 %s : %s 】 Command:〈 %s 〉throw error %v！", os.Getenv("PROJECT_ENV"), os.Getenv("MACHINE_IP"), mission.Name, err)
-				BotSendMessage(message)
-			},
-		))
-	}
 	for _, mission := range missions {
+		mission.ErrorHandler = func(err error) {
+			log.Printf("【 %s : %s 】 Command:〈 %s 〉throw error %v！\n", os.Getenv("PROJECT_ENV"), os.Getenv("MACHINE_IP"), mission.Name, err)
+			message := fmt.Sprintf("【 %s : %s 】 Command:〈 %s 〉throw error %v！", os.Getenv("PROJECT_ENV"), os.Getenv("MACHINE_IP"), mission.Name, err)
+			BotSendMessage(message)
+		}
+
 		schdule.AddMission(mission.Cron, mission)
 	}
 	schdule.Run()

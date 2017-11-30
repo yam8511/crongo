@@ -5,8 +5,8 @@
 		{
 			"checksumSHA1": "0cdNscA7+z4+lKF5usZYz3it/04=",
 			"path": "github.com/joho/godotenv",
-			"revision": "6d367c18edf6ca7fd004efd6863e4c5728fa858e",
-			"revisionTime": "2017-11-10T01:03:15Z"
+			"revision": "a79fa1e548e2c689c241d10173efd51e5d689d5b",
+			"revisionTime": "2017-09-18T06:32:59Z"
 		},
 		{
 			"checksumSHA1": "t8jzPFIv4DNACv+cuZoigNmjPLQ=",
@@ -15,10 +15,10 @@
 			"revisionTime": "2013-10-20T00:18:33Z"
 		},
 		{
-			"checksumSHA1": "F3ODgfwXw/GlzhhGESPsFYBATS8=",
+			"checksumSHA1": "t1CCxkRqcqnJOyh77qc4Ji0djdI=",
 			"path": "github.com/yam8511/crongo",
-			"revision": "8c8a52a054993db2e7a6f9267e1dedd783b02bfd",
-			"revisionTime": "2017-11-29T18:55:46Z"
+			"revision": "198d56639f15f16b838360a7a0e817bd234b9ea4",
+			"revisionTime": "2017-11-29T20:11:08Z"
 		},
 		{
 			"checksumSHA1": "CzLpoHWYgSP+mT3bcW/jt8epp5I=",
