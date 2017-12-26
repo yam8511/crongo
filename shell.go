@@ -23,7 +23,7 @@ type Shell struct {
 	// 是否啟動
 	IsEnable bool `json:"enable"`
 	// 錯誤處理方式
-	ErrorHandler func(error)
+	ErrorHandler func(exec.Cmd, error)
 }
 
 // Run : 執行任務
@@ -49,7 +49,7 @@ func (shell *Shell) Run() {
 	err := cmd.Start()
 	// 如果有錯誤，則結束程式並且執行錯誤處理
 	if err != nil && shell.ErrorHandler != nil {
-		shell.ErrorHandler(err)
+		shell.ErrorHandler(cmd, err)
 		return
 	}
 
@@ -62,7 +62,7 @@ func (shell *Shell) Run() {
 	// 等待 command 執行結束
 	err = cmd.Wait()
 	if err != nil && shell.ErrorHandler != nil {
-		shell.ErrorHandler(err)
+		shell.ErrorHandler(cmd, err)
 	}
 
 	// 清除該程序的PID
