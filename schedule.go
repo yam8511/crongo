@@ -37,22 +37,18 @@ func NewSchedule() *Schedule {
 }
 
 // NewShell : 建立一個新任務
-func (schedule *Schedule) NewShell(name, cron, command string, args []string, overlapping, enable bool, errorHandler func(error)) *Shell {
-	handler := errorHandler
-	if errorHandler == nil {
-		handler = func(err error) {
-			log.Printf("[Warning] Command:〈 %s 〉throw error %v\n", name, err)
-		}
-	}
+func (schedule *Schedule) NewShell(name, cron, command string, args []string, overlapping, enable bool, errorHandler func(*exec.Cmd, error), prepareHandler func(*exec.Cmd), finishHandler func(*exec.Cmd)) *Shell {
 	return &Shell{
-		Name:         name,
-		Cron:         cron,
-		Command:      command,
-		Args:         args,
-		Overlapping:  overlapping,
-		Pids:         []int{},
-		IsEnable:     enable,
-		ErrorHandler: handler,
+		Name:           name,
+		Cron:           cron,
+		Command:        command,
+		Args:           args,
+		Overlapping:    overlapping,
+		Pids:           []int{},
+		IsEnable:       enable,
+		ErrorHandler:   errorHandler,
+		PrepareHandler: prepareHandler,
+		FinishHandler:  finishHandler,
 	}
 }
 

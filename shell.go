@@ -23,7 +23,11 @@ type Shell struct {
 	// 是否啟動
 	IsEnable bool `json:"enable"`
 	// 錯誤處理方式
-	ErrorHandler func(exec.Cmd, error)
+	ErrorHandler func(*exec.Cmd, error)
+	// 前置作業事件
+	PrepareHandler func(*exec.Cmd)
+	// 作業完成事件
+	FinishHandler func(*exec.Cmd)
 }
 
 // Run : 執行任務
@@ -44,6 +48,9 @@ func (shell *Shell) Run() {
 	// 載入系統的環境變數
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, "ALIAS="+shell.Name)
+	if shell.PrepareHandler != nil {
+		shell.PrepareHandler(cmd)
+	}
 
 	// 模仿 Terminal 按下 Enter 鍵
 	err := cmd.Start()
@@ -63,6 +70,11 @@ func (shell *Shell) Run() {
 	err = cmd.Wait()
 	if err != nil && shell.ErrorHandler != nil {
 		shell.ErrorHandler(cmd, err)
+	}
+
+	// 執行結束的動作
+	if shell.FinishHandler != nil {
+		shell.FinishHandler(cmd)
 	}
 
 	// 清除該程序的PID
