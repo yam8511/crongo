@@ -28,7 +28,7 @@ type Shell struct {
 	// 錯誤處理方式
 	ErrorHandler func(*exec.Cmd, error)
 	// 前置作業事件
-	PrepareHandler func(*exec.Cmd)
+	PrepareHandler func(*exec.Cmd) error
 	// 作業完成事件
 	FinishHandler func(*exec.Cmd)
 	// 讀寫鎖
@@ -44,6 +44,19 @@ func (shell *Shell) Run() {
 		}
 	}()
 
+	// 模仿 Terminal 輸入指令
+	cmd := exec.Command(shell.Command, shell.Args...)
+
+	// 載入系統的環境變數
+	cmd.Env = os.Environ()
+	cmd.Env = append(cmd.Env, shell.Env...)
+	if shell.PrepareHandler != nil {
+		preErr := shell.PrepareHandler(cmd)
+		if preErr != nil {
+			shell.ErrorHandler(cmd, preErr)
+		}
+	}
+
 	// 若任務沒有啟動，則不執行
 	if !shell.IsEnable {
 		return
@@ -52,16 +65,6 @@ func (shell *Shell) Run() {
 	// 若已經有執行的程序，則不執行
 	if !shell.Overlapping && len(shell.Pids) > 0 {
 		return
-	}
-
-	// 模仿 Terminal 輸入指令
-	cmd := exec.Command(shell.Command, shell.Args...)
-
-	// 載入系統的環境變數
-	cmd.Env = os.Environ()
-	cmd.Env = append(cmd.Env, shell.Env...)
-	if shell.PrepareHandler != nil {
-		shell.PrepareHandler(cmd)
 	}
 
 	// 模仿 Terminal 按下 Enter 鍵

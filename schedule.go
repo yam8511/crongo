@@ -40,7 +40,7 @@ func NewSchedule() *Schedule {
 }
 
 // NewShell : 建立一個新任務
-func (schedule *Schedule) NewShell(name, cron, command string, args []string, env []string, overlapping, enable bool, errorHandler func(*exec.Cmd, error), prepareHandler func(*exec.Cmd), finishHandler func(*exec.Cmd)) *Shell {
+func (schedule *Schedule) NewShell(name, cron, command string, args []string, env []string, overlapping, enable bool, errorHandler func(*exec.Cmd, error), prepareHandler func(*exec.Cmd) error, finishHandler func(*exec.Cmd)) *Shell {
 	return &Shell{
 		Name:           name,
 		Cron:           cron,
