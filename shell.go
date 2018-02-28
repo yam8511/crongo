@@ -1,37 +1,49 @@
 package crongo
 
 import (
-	"log"
+	"fmt"
 	"os"
 	"os/exec"
+	"sync"
 )
 
 // Shell : Shell指令
 type Shell struct {
 	// 任務名稱
-	Name string `json:"name"`
+	Name string `toml:"name,omitempty" json:"name"`
 	// 執行週期
-	Cron string `json:"cron"`
+	Cron string `toml:"cron,omitempty" json:"cron"`
 	// 指令
-	Command string `json:"command"`
+	Command string `toml:"command,omitempty" json:"command"`
 	// 指令參數
-	Args []string `json:"args"`
+	Args []string `toml:"args,omitempty" json:"args"`
+	// 環境參數
+	Env []string `toml:"env,omitempty" json:"env"`
 	// 是否能重複行
-	Overlapping bool `json:"overlapping"`
+	Overlapping bool `toml:"overlapping,omitempty" json:"overlapping"`
 	// 已執行的PIDs
-	Pids []int `json:"pids"`
+	Pids []int `toml:"pids,omitempty" json:"pids"`
 	// 是否啟動
-	IsEnable bool `json:"enable"`
+	IsEnable bool `toml:"enable,omitempty" json:"enable"`
 	// 錯誤處理方式
 	ErrorHandler func(*exec.Cmd, error)
 	// 前置作業事件
 	PrepareHandler func(*exec.Cmd)
 	// 作業完成事件
 	FinishHandler func(*exec.Cmd)
+	// 讀寫鎖
+	mutex *sync.RWMutex
 }
 
 // Run : 執行任務
 func (shell *Shell) Run() {
+	defer func() {
+		if err := recover(); err != nil {
+			writeLog(fmt.Sprintf("[ERROR] Task〈%s〉unexpected error (%v)", shell.Name, err))
+			return
+		}
+	}()
+
 	// 若任務沒有啟動，則不執行
 	if !shell.IsEnable {
 		return
@@ -47,7 +59,7 @@ func (shell *Shell) Run() {
 
 	// 載入系統的環境變數
 	cmd.Env = os.Environ()
-	cmd.Env = append(cmd.Env, "ALIAS="+shell.Name)
+	cmd.Env = append(cmd.Env, shell.Env...)
 	if shell.PrepareHandler != nil {
 		shell.PrepareHandler(cmd)
 	}
@@ -61,10 +73,12 @@ func (shell *Shell) Run() {
 	}
 
 	// 記下程序的PID
+	shell.mutex.Lock()
 	shell.Pids = append(shell.Pids, cmd.Process.Pid)
+	shell.mutex.Unlock()
 
 	// Debug用
-	log.Println("[Info] Name:", shell.Name, ", PID:", shell.Pids)
+	writeLog(fmt.Sprintf("[INFO] Task〈%s〉Start with PID #%d", shell.Name, cmd.Process.Pid))
 
 	// 等待 command 執行結束
 	err = cmd.Wait()
@@ -78,13 +92,21 @@ func (shell *Shell) Run() {
 	}
 
 	// 清除該程序的PID
+	shell.mutex.Lock()
 	index := indexOf(shell.Pids, cmd.Process.Pid)
 	if index != -1 {
 		shell.Pids = append(shell.Pids[:index], shell.Pids[index+1:]...)
 	}
+	shell.mutex.Unlock()
 
 	// Debug用
-	log.Printf("[OK] Command:〈 %s 〉, PID:〈 %d 〉, Finish with error: %v\n", shell.Name, cmd.Process.Pid, err)
+	var exitCode interface{}
+	if err != nil {
+		exitCode = err
+	} else {
+		exitCode = 0
+	}
+	writeLog(fmt.Sprintf("[INFO] Task〈 %s 〉#%d exit (%v)", shell.Name, cmd.Process.Pid, exitCode))
 }
 
 // Enable : 開啟任務
@@ -105,4 +127,9 @@ func (shell *Shell) GetPids() []int {
 // GetName : 取目前任務的名稱
 func (shell *Shell) GetName() string {
 	return shell.Name
+}
+
+// GetCron : 取目前任務的排程時間
+func (shell *Shell) GetCron() string {
+	return shell.Cron
 }

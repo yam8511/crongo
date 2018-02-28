@@ -2,8 +2,8 @@ package crongo
 
 import (
 	"fmt"
-	"log"
 	"os/exec"
+	"sync"
 	"time"
 
 	cron "gopkg.in/robfig/cron.v2"
@@ -15,10 +15,12 @@ type Schedule struct {
 	Missions []Mission
 	Running  bool
 	Cron     *cron.Cron
+	mutex    *sync.RWMutex
 }
 
 // Mission : 任務介面
 type Mission interface {
+	GetCron() string
 	Run()
 	Enable()
 	Disable()
@@ -32,30 +34,35 @@ func NewSchedule() *Schedule {
 		Missions: []Mission{},
 		Running:  false,
 		Cron:     cron.New(),
+		mutex:    new(sync.RWMutex),
 	}
 	return newSchedule
 }
 
 // NewShell : 建立一個新任務
-func (schedule *Schedule) NewShell(name, cron, command string, args []string, overlapping, enable bool, errorHandler func(*exec.Cmd, error), prepareHandler func(*exec.Cmd), finishHandler func(*exec.Cmd)) *Shell {
+func (schedule *Schedule) NewShell(name, cron, command string, args []string, env []string, overlapping, enable bool, errorHandler func(*exec.Cmd, error), prepareHandler func(*exec.Cmd), finishHandler func(*exec.Cmd)) *Shell {
 	return &Shell{
 		Name:           name,
 		Cron:           cron,
 		Command:        command,
 		Args:           args,
+		Env:            env,
 		Overlapping:    overlapping,
 		Pids:           []int{},
 		IsEnable:       enable,
 		ErrorHandler:   errorHandler,
 		PrepareHandler: prepareHandler,
 		FinishHandler:  finishHandler,
+		mutex:          new(sync.RWMutex),
 	}
 }
 
 // AddMission : 新增任務到背景排程
-func (schedule *Schedule) AddMission(cron string, mission Mission) error {
+func (schedule *Schedule) AddMission(mission Mission) error {
+	schedule.mutex.Lock()
 	schedule.Missions = append(schedule.Missions, mission)
-	_, err := schedule.Cron.AddJob(cron, mission)
+	schedule.mutex.Unlock()
+	_, err := schedule.Cron.AddJob(mission.GetCron(), mission)
 	return err
 }
 
@@ -63,11 +70,11 @@ func (schedule *Schedule) AddMission(cron string, mission Mission) error {
 func (schedule *Schedule) Run() {
 	// 如果背景正在跑，則跳過
 	if schedule.Running {
-		log.Println("======= 目前背景排程已經啟動... =======")
+		writeLog("======= 目前背景排程已經啟動... =======")
 		return
 	}
 
-	log.Println("====== !!! 開始啟動背景程序 !!! ======")
+	writeLog("====== !!! 開始啟動背景程序 !!! ======")
 	schedule.Running = true
 	schedule.Cron.Start()
 }
@@ -75,19 +82,19 @@ func (schedule *Schedule) Run() {
 // Suspend : 停止背景排程
 func (schedule *Schedule) Suspend() {
 	if !schedule.Running {
-		log.Println("======= 目前背景排程已經停止... =======")
+		writeLog("======= 目前背景排程已經停止... =======")
 		return
 	}
 
 	schedule.Cron.Stop()
 
-	log.Println("======= 等待背景以下程序結束... =======")
+	writeLog("======= 等待背景以下程序結束... =======")
 	for _, mission := range schedule.Missions {
 		if pids := mission.GetPids(); len(pids) > 0 {
-			log.Printf("> Command:〈 %s 〉, PID:〈 %d 〉\n", mission.GetName(), pids)
+			writeLog(fmt.Sprintf("> Command:〈 %s 〉, PID:〈 %d 〉", mission.GetName(), pids))
 		}
 	}
-	log.Println("=======================================")
+	writeLog("=======================================")
 
 	waittingProcessFinish := make(chan int)
 	go func() {
@@ -108,30 +115,30 @@ func (schedule *Schedule) Suspend() {
 	<-waittingProcessFinish
 
 	schedule.Running = false
-	log.Println("======== !!! 背景程序已暫停 !!! =======")
+	writeLog("======== !!! 背景程序已暫停 !!! =======")
 }
 
 // Destroy : 強制停止背景排程
 func (schedule *Schedule) Destroy() {
 	if !schedule.Running {
-		log.Println("======== 目前背景排程尚未啟動... ========")
+		writeLog("======== 目前背景排程尚未啟動... ========")
 		return
 	}
 	schedule.Cron.Stop()
 
-	log.Println("======== !!! 即將摧毀以下背景程序 !!! ========")
+	writeLog("======== !!! 即將摧毀以下背景程序 !!! ========")
 	for _, mission := range schedule.Missions {
 		if pids := mission.GetPids(); len(pids) > 0 {
-			log.Printf("> Command:〈 %s 〉, PID:〈 %d 〉\n", mission.GetName(), pids)
+			writeLog(fmt.Sprintf("> Task〈 %s 〉, PID:〈 %v 〉", mission.GetName(), pids))
 		}
 	}
-	log.Println("==============================================")
+	writeLog("==============================================")
 
 	timer := time.NewTicker(time.Second)
 	tick := 5
 	go func() {
 		for range timer.C {
-			log.Printf("[Danger] 倒數%d秒.....\n", tick)
+			writeLog(fmt.Sprintf("[WARNING] 倒數%d秒.....", tick))
 			tick--
 		}
 	}()
@@ -139,7 +146,7 @@ func (schedule *Schedule) Destroy() {
 	}
 	timer.Stop()
 
-	log.Println("========== !!! 開始摧毀背景程序 !!! ==========")
+	writeLog("========== !!! 開始摧毀背景程序 !!! ==========")
 	killPids := []string{}
 	for _, mission := range schedule.Missions {
 		for _, pid := range mission.GetPids() {
@@ -150,10 +157,10 @@ func (schedule *Schedule) Destroy() {
 	err := killer.Run()
 	time.Sleep(time.Second)
 	if err != nil {
-		log.Println("========== !!! 背景摧毀發生錯誤 !!! ==========")
-		log.Printf("[Error] %v\n", err)
+		writeLog("========== !!! 背景摧毀發生錯誤 !!! ==========")
+		writeLog(fmt.Sprintf("[ERROR] %v", err))
 	} else {
-		log.Println("========== !!! 背景程序摧毀完畢 !!! ==========")
+		writeLog("========== !!! 背景程序摧毀完畢 !!! ==========")
 	}
 
 	schedule.Running = false

@@ -20,8 +20,11 @@ func main() {
 		"* * * * * *",
 		"sleep",
 		[]string{"1"},
+		[]string{},
 		false,
 		true,
+		nil,
+		nil,
 		nil,
 	)
 	twice := schdule.NewShell(
@@ -29,12 +32,15 @@ func main() {
 		"* * * * * *",
 		"sleep",
 		[]string{"15"},
+		[]string{},
 		true,
 		true,
 		nil,
+		nil,
+		nil,
 	)
-	schdule.AddMission(one.Cron, one)
-	schdule.AddMission(twice.Cron, twice)
+	schdule.AddMission(one)
+	schdule.AddMission(twice)
 	schdule.Run()
 	time.Sleep(time.Second * 10)
 	schdule.Destroy()
