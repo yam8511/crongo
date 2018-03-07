@@ -21,6 +21,8 @@ type Shell struct {
 	Env []string `toml:"env,omitempty" json:"env"`
 	// 是否能重複行
 	Overlapping bool `toml:"overlapping,omitempty" json:"overlapping"`
+	// 是否常駐
+	Permanent bool `toml:"permanent,omitempty" json:"permanent"`
 	// 已執行的PIDs
 	Pids []int `toml:"pids,omitempty" json:"pids"`
 	// 是否啟動
@@ -135,4 +137,9 @@ func (shell *Shell) GetName() string {
 // GetCron : 取目前任務的排程時間
 func (shell *Shell) GetCron() string {
 	return shell.Cron
+}
+
+// IsPermanent : 是否為常駐程序
+func (shell *Shell) IsPermanent() bool {
+	return shell.Permanent
 }

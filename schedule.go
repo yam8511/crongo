@@ -26,6 +26,7 @@ type Mission interface {
 	Disable()
 	GetName() string
 	GetPids() []int
+	IsPermanent() bool
 }
 
 // NewSchedule : 建立一個新排程
@@ -40,7 +41,7 @@ func NewSchedule() *Schedule {
 }
 
 // NewShell : 建立一個新任務
-func (schedule *Schedule) NewShell(name, cron, command string, args []string, env []string, overlapping, enable bool, errorHandler func(*exec.Cmd, error), prepareHandler func(*exec.Cmd) error, finishHandler func(*exec.Cmd)) *Shell {
+func (schedule *Schedule) NewShell(name, cron, command string, args []string, env []string, overlapping, permanet, enable bool, errorHandler func(*exec.Cmd, error), prepareHandler func(*exec.Cmd) error, finishHandler func(*exec.Cmd)) *Shell {
 	return &Shell{
 		Name:           name,
 		Cron:           cron,
@@ -48,6 +49,7 @@ func (schedule *Schedule) NewShell(name, cron, command string, args []string, en
 		Args:           args,
 		Env:            env,
 		Overlapping:    overlapping,
+		Permanent:      permanet,
 		Pids:           []int{},
 		IsEnable:       enable,
 		ErrorHandler:   errorHandler,
@@ -88,13 +90,30 @@ func (schedule *Schedule) Suspend() {
 
 	schedule.Cron.Stop()
 
+	killPids := []string{}
 	writeLog("======= 等待背景以下程序結束... =======")
 	for _, mission := range schedule.Missions {
-		if pids := mission.GetPids(); len(pids) > 0 {
+		pids := mission.GetPids()
+		if mission.IsPermanent() {
+			for _, pid := range pids {
+				killPids = append(killPids, fmt.Sprint(pid))
+			}
+		}
+		if len(pids) > 0 {
 			writeLog(fmt.Sprintf("> Command:〈 %s 〉, PID:〈 %d 〉", mission.GetName(), pids))
 		}
 	}
 	writeLog("=======================================")
+
+	killer := exec.Command("kill", killPids...)
+	err := killer.Run()
+	time.Sleep(time.Second)
+	if err != nil {
+		writeLog("========== !!! 常駐程序摧毀發生錯誤 !!! ==========")
+		writeLog(fmt.Sprintf("[ERROR] %v", err))
+	} else {
+		writeLog("========== !!! 常駐程序摧毀完畢 !!! ==========")
+	}
 
 	waittingProcessFinish := make(chan int)
 	go func() {
