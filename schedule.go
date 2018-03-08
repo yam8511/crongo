@@ -1,8 +1,10 @@
 package crongo
 
 import (
+	"bytes"
 	"fmt"
 	"os/exec"
+	"strings"
 	"sync"
 	"time"
 
@@ -105,14 +107,25 @@ func (schedule *Schedule) Suspend() {
 	}
 	writeLog("=======================================")
 
-	killer := exec.Command("kill", killPids...)
-	err := killer.Run()
-	time.Sleep(time.Second)
-	if err != nil {
-		writeLog("========== !!! 常駐程序摧毀發生錯誤 !!! ==========")
-		writeLog(fmt.Sprintf("[ERROR] %v", err))
-	} else {
-		writeLog("========== !!! 常駐程序摧毀完畢 !!! ==========")
+	if len(killPids) > 0 {
+		writeLog("========== !!! 常駐程序摧毀開始 !!! ==========")
+		killer := exec.Command("kill", killPids...)
+		stdin := strings.Join(killer.Args, " ")
+		writeLog(fmt.Sprintf("[STDIN] %s", stdin))
+
+		killer.Stdout = bytes.NewBuffer(nil)
+		killer.Stderr = bytes.NewBuffer(nil)
+		err := killer.Run()
+		time.Sleep(time.Second)
+		if err != nil {
+			stdout := string(killer.Stdout.(*bytes.Buffer).Bytes())
+			stderr := string(killer.Stderr.(*bytes.Buffer).Bytes())
+			writeLog("========== !!! 常駐程序摧毀發生錯誤 !!! ==========")
+			writeLog(fmt.Sprintf("[STDOUT] %v", stdout))
+			writeLog(fmt.Sprintf("[STDERR] %v", stderr))
+		} else {
+			writeLog("========== !!! 常駐程序摧毀完畢 !!! ==========")
+		}
 	}
 
 	waittingProcessFinish := make(chan int)
