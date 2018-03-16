@@ -2,6 +2,7 @@ package crongo
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"sync"
@@ -28,11 +29,11 @@ type Shell struct {
 	// 是否啟動
 	IsEnable bool `toml:"enable,omitempty" json:"enable"`
 	// 錯誤處理方式
-	ErrorHandler func(*exec.Cmd, error)
+	ErrorHandler func(*exec.Cmd, error) error
 	// 前置作業事件
 	PrepareHandler func(*exec.Cmd) error
 	// 作業完成事件
-	FinishHandler func(*exec.Cmd)
+	FinishHandler func(*exec.Cmd) error
 	// 讀寫鎖
 	mutex *sync.RWMutex
 }
@@ -41,7 +42,7 @@ type Shell struct {
 func (shell *Shell) Run() {
 	defer func() {
 		if err := recover(); err != nil {
-			writeLog(fmt.Sprintf("[ERROR] Task〈%s〉unexpected error (%v)", shell.Name, err))
+			log.Printf("[ERROR] ❌  Task〈%s〉發生意外錯誤 (%v) ❌", shell.Name, err)
 			return
 		}
 	}()
@@ -55,7 +56,8 @@ func (shell *Shell) Run() {
 	if shell.PrepareHandler != nil {
 		preErr := shell.PrepareHandler(cmd)
 		if preErr != nil {
-			shell.ErrorHandler(cmd, preErr)
+			log.Printf("[ERROR] ❌  Task〈%s〉準備階段錯誤 (%v) ❌", shell.Name, preErr)
+			return
 		}
 	}
 
@@ -73,7 +75,10 @@ func (shell *Shell) Run() {
 	err := cmd.Start()
 	// 如果有錯誤，則結束程式並且執行錯誤處理
 	if err != nil && shell.ErrorHandler != nil {
-		shell.ErrorHandler(cmd, err)
+		handleErr := shell.ErrorHandler(cmd, err)
+		if handleErr != nil {
+			log.Printf("[ERROR] ❌  Task〈%s〉執行階段錯誤 (%v) ❌", shell.Name, handleErr)
+		}
 		return
 	}
 
@@ -83,17 +88,24 @@ func (shell *Shell) Run() {
 	shell.mutex.Unlock()
 
 	// Debug用
-	writeLog(fmt.Sprintf("[INFO] Task〈%s〉Start with PID #%d", shell.Name, cmd.Process.Pid))
+	writeLog(fmt.Sprintf("[INFO] ✨  Task〈%s〉開始執行，PID #%d ✨", shell.Name, cmd.Process.Pid))
 
 	// 等待 command 執行結束
 	err = cmd.Wait()
 	if err != nil && shell.ErrorHandler != nil {
-		shell.ErrorHandler(cmd, err)
+		handleErr := shell.ErrorHandler(cmd, err)
+		if handleErr != nil {
+			log.Printf("[ERROR] ❌  Task〈%s〉等待階段錯誤 (%v) ❌", shell.Name, handleErr)
+		}
+		return
 	}
 
 	// 執行結束的動作
 	if shell.FinishHandler != nil {
-		shell.FinishHandler(cmd)
+		finishErr := shell.FinishHandler(cmd)
+		if finishErr != nil {
+			log.Printf("[ERROR] ❌  Task〈%s〉完成階段錯誤 (%v) ❌", shell.Name, finishErr)
+		}
 	}
 
 	// 清除該程序的PID
@@ -111,7 +123,7 @@ func (shell *Shell) Run() {
 	} else {
 		exitCode = 0
 	}
-	writeLog(fmt.Sprintf("[INFO] Task〈 %s 〉#%d exit (%v)", shell.Name, cmd.Process.Pid, exitCode))
+	writeLog(fmt.Sprintf("[INFO] ✨  Task〈 %s 〉#%d 結束 (%v) ✨", shell.Name, cmd.Process.Pid, exitCode))
 }
 
 // Enable : 開啟任務
