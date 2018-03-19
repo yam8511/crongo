@@ -86,9 +86,27 @@ func (shell *Shell) Run() {
 	shell.mutex.Lock()
 	shell.Pids = append(shell.Pids, cmd.Process.Pid)
 	shell.mutex.Unlock()
-
 	// Debug用
 	writeLog(fmt.Sprintf("[INFO] ✨  Task〈%s〉開始執行，PID #%d ✨", shell.Name, cmd.Process.Pid))
+
+	// 結束時，需清除該程序的PID
+	defer func() {
+		shell.mutex.Lock()
+		index := indexOf(shell.Pids, cmd.Process.Pid)
+		if index != -1 {
+			shell.Pids = append(shell.Pids[:index], shell.Pids[index+1:]...)
+		}
+		shell.mutex.Unlock()
+
+		// Debug用
+		var exitCode interface{}
+		if err != nil {
+			exitCode = err
+		} else {
+			exitCode = 0
+		}
+		writeLog(fmt.Sprintf("[INFO] ✨  Task〈 %s 〉#%d 結束 (%v) ✨", shell.Name, cmd.Process.Pid, exitCode))
+	}()
 
 	// 等待 command 執行結束
 	err = cmd.Wait()
@@ -107,23 +125,6 @@ func (shell *Shell) Run() {
 			log.Printf("[ERROR] ❌  Task〈%s〉完成階段錯誤 (%v) ❌", shell.Name, finishErr)
 		}
 	}
-
-	// 清除該程序的PID
-	shell.mutex.Lock()
-	index := indexOf(shell.Pids, cmd.Process.Pid)
-	if index != -1 {
-		shell.Pids = append(shell.Pids[:index], shell.Pids[index+1:]...)
-	}
-	shell.mutex.Unlock()
-
-	// Debug用
-	var exitCode interface{}
-	if err != nil {
-		exitCode = err
-	} else {
-		exitCode = 0
-	}
-	writeLog(fmt.Sprintf("[INFO] ✨  Task〈 %s 〉#%d 結束 (%v) ✨", shell.Name, cmd.Process.Pid, exitCode))
 }
 
 // Enable : 開啟任務
