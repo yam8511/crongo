@@ -1,10 +1,8 @@
 package crongo
 
 import (
-	"bytes"
 	"fmt"
 	"os/exec"
-	"strings"
 	"sync"
 	"time"
 
@@ -14,7 +12,7 @@ import (
 // Schedule : 背景排程
 type Schedule struct {
 	// CronJobs : 需要執行的背景任務
-	CronJobs []CronJob
+	CronJobs map[string]CronJob
 	// Missions []Mission
 	Running bool
 	Cron    *cron.Cron
@@ -31,17 +29,19 @@ type CronJob struct {
 type Mission interface {
 	GetCron() string
 	Run()
+	Stop()
 	Enable()
 	Disable()
 	GetName() string
 	GetPids() []int
 	IsPermanent() bool
+	IsRunning() bool
 }
 
 // NewSchedule : 建立一個新排程
 func NewSchedule() *Schedule {
 	newSchedule := &Schedule{
-		CronJobs: []CronJob{},
+		CronJobs: map[string]CronJob{},
 		Running:  false,
 		Cron:     cron.New(),
 		mutex:    new(sync.RWMutex),
@@ -77,41 +77,39 @@ func (schedule *Schedule) NewShell(
 
 // AddMission : 新增任務到背景排程
 func (schedule *Schedule) AddMission(mission Mission) error {
-	entry, err := schedule.Cron.AddJob(mission.GetCron(), mission)
 	schedule.mutex.Lock()
-	schedule.CronJobs = append(schedule.CronJobs, CronJob{
+	defer schedule.mutex.Unlock()
+
+	if _, ok := schedule.CronJobs[mission.GetName()]; ok {
+		return fmt.Errorf("Job'name has been declared -> %s", mission.GetName())
+	}
+	entry, err := schedule.Cron.AddJob(mission.GetCron(), mission)
+	schedule.CronJobs[mission.GetName()] = CronJob{
 		Mission: mission,
 		EntryID: entry,
-	})
-	schedule.mutex.Unlock()
+	}
 	return err
 }
 
 // RemoveMission : 從背景排程刪除任務
-func (schedule *Schedule) RemoveMission(mission Mission) error {
-	index := -1
-	var removeEntryID cron.EntryID
-	schedule.mutex.RLock()
-	for i, Job := range schedule.CronJobs {
-		if Job.Mission == mission {
-			removeEntryID = Job.EntryID
-			index = i
-			break
+func (schedule *Schedule) RemoveMission(name string) (err error) {
+	schedule.mutex.Lock()
+	defer schedule.mutex.Unlock()
+	defer func() {
+		if catchErr := recover(); catchErr != nil {
+			err = fmt.Errorf("%v", catchErr)
+			return
 		}
+	}()
+	if job, ok := schedule.CronJobs[name]; ok {
+		schedule.Cron.Remove(job.EntryID)
+		job.Mission.Stop()
 	}
-	schedule.mutex.RUnlock()
-
-	if index != -1 {
-		schedule.mutex.Lock()
-		schedule.Cron.Remove(removeEntryID)
-		schedule.CronJobs = append(schedule.CronJobs[:index], schedule.CronJobs[index+1:]...)
-		schedule.mutex.Unlock()
-	}
-	return nil
+	return
 }
 
-// Run : 開始執行背景排程
-func (schedule *Schedule) Run() {
+// Start : 開始執行背景排程
+func (schedule *Schedule) Start() {
 	// 如果背景正在跑，則跳過
 	if schedule.Running {
 		writeLog("======= 目前背景排程已經啟動... =======")
@@ -123,8 +121,8 @@ func (schedule *Schedule) Run() {
 	schedule.Cron.Start()
 }
 
-// Suspend : 停止背景排程
-func (schedule *Schedule) Suspend() {
+// Stop : 停止背景排程
+func (schedule *Schedule) Stop() {
 	if !schedule.Running {
 		writeLog("======= 目前背景排程已經停止... =======")
 		return
@@ -135,6 +133,7 @@ func (schedule *Schedule) Suspend() {
 	killPids := []string{}
 	writeLog("======= 等待背景以下程序結束... =======")
 	for _, Job := range schedule.CronJobs {
+		Job.Mission.Stop()
 		pids := Job.Mission.GetPids()
 		if Job.Mission.IsPermanent() {
 			for _, pid := range pids {
@@ -146,27 +145,6 @@ func (schedule *Schedule) Suspend() {
 		}
 	}
 	writeLog("=======================================")
-
-	if len(killPids) > 0 {
-		writeLog("========== !!! 常駐程序摧毀開始 !!! ==========")
-		killer := exec.Command("kill", killPids...)
-		stdin := strings.Join(killer.Args, " ")
-		writeLog(fmt.Sprintf("[STDIN] %s", stdin))
-
-		killer.Stdout = bytes.NewBuffer(nil)
-		killer.Stderr = bytes.NewBuffer(nil)
-		err := killer.Run()
-		time.Sleep(time.Second)
-		if err != nil {
-			stdout := string(killer.Stdout.(*bytes.Buffer).Bytes())
-			stderr := string(killer.Stderr.(*bytes.Buffer).Bytes())
-			writeLog("========== !!! 常駐程序摧毀發生錯誤 !!! ==========")
-			writeLog(fmt.Sprintf("[STDOUT] %v", stdout))
-			writeLog(fmt.Sprintf("[STDERR] %v", stderr))
-		} else {
-			writeLog("========== !!! 常駐程序摧毀完畢 !!! ==========")
-		}
-	}
 
 	waittingProcessFinish := make(chan int)
 	go func() {
@@ -200,6 +178,7 @@ func (schedule *Schedule) Destroy() {
 
 	writeLog("======== !!! 即將摧毀以下背景程序 !!! ========")
 	for _, Job := range schedule.CronJobs {
+		Job.Mission.Stop()
 		if pids := Job.Mission.GetPids(); len(pids) > 0 {
 			writeLog(fmt.Sprintf("> Task〈 %s 〉, PID:〈 %v 〉", Job.Mission.GetName(), pids))
 		}
@@ -218,12 +197,22 @@ func (schedule *Schedule) Destroy() {
 	}
 	timer.Stop()
 
-	writeLog("========== !!! 開始摧毀背景程序 !!! ==========")
-	killPids := []string{"-9"}
+	pids := []int{}
 	for _, Job := range schedule.CronJobs {
 		for _, pid := range Job.Mission.GetPids() {
-			killPids = append(killPids, fmt.Sprint(pid))
+			pids = append(pids, pid)
 		}
+	}
+
+	if len(pids) == 0 {
+		writeLog("======== !!! 背景程序已結束 !!! =======")
+		return
+	}
+
+	writeLog("========== !!! 開始摧毀背景程序 !!! ==========")
+	killPids := []string{"-9"}
+	for _, pid := range pids {
+		killPids = append(killPids, fmt.Sprint(pid))
 	}
 	killer := exec.Command("kill", killPids...)
 	err := killer.Run()

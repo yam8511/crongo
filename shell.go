@@ -1,11 +1,14 @@
 package crongo
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
+	"time"
 )
 
 // Shell : Shell指令
@@ -127,6 +130,39 @@ func (shell *Shell) Run() {
 	}
 }
 
+// Stop : 停止程序
+func (shell *Shell) Stop() {
+	killPids := []string{}
+	shell.mutex.RLock()
+	for _, pid := range shell.Pids {
+		killPids = append(killPids, fmt.Sprint(pid))
+	}
+	shell.mutex.RUnlock()
+
+	killer := exec.Command("kill", killPids...)
+	stdin := strings.Join(killer.Args, " ")
+	if DebugMode {
+		writeLog(fmt.Sprintf("[STDIN] Job [%s] %s", shell.Name, stdin))
+	}
+
+	killer.Stdout = bytes.NewBuffer(nil)
+	killer.Stderr = bytes.NewBuffer(nil)
+	err := killer.Run()
+	time.Sleep(time.Second)
+	if DebugMode {
+		if err != nil {
+			stdout := string(killer.Stdout.(*bytes.Buffer).Bytes())
+			stderr := string(killer.Stderr.(*bytes.Buffer).Bytes())
+			if stdout != "" {
+				writeLog(fmt.Sprintf("[STDOUT] Job [%s] %v", shell.Name, stdout))
+			}
+			if stderr != "" {
+				writeLog(fmt.Sprintf("[STDERR] Job [%s] %v", shell.Name, stderr))
+			}
+		}
+	}
+}
+
 // Enable : 開啟任務
 func (shell *Shell) Enable() {
 	shell.IsEnable = true
@@ -139,6 +175,8 @@ func (shell *Shell) Disable() {
 
 // GetPids : 取目前執行的PID
 func (shell *Shell) GetPids() []int {
+	shell.mutex.RLock()
+	defer shell.mutex.RUnlock()
 	return shell.Pids
 }
 
@@ -155,4 +193,11 @@ func (shell *Shell) GetCron() string {
 // IsPermanent : 是否為常駐程序
 func (shell *Shell) IsPermanent() bool {
 	return shell.Permanent
+}
+
+// IsRunning : 程序是否執行中
+func (shell *Shell) IsRunning() bool {
+	shell.mutex.RLock()
+	defer shell.mutex.RUnlock()
+	return len(shell.Pids) > 0
 }

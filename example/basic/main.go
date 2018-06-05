@@ -32,7 +32,7 @@ func main() {
 		"snoopy",
 		"* * * * * *",
 		"sleep",
-		[]string{"15"},
+		[]string{"3"},
 		[]string{},
 		true,
 		false,
@@ -43,7 +43,7 @@ func main() {
 	)
 	schdule.AddMission(one)
 	schdule.AddMission(twice)
-	schdule.Run()
-	time.Sleep(time.Second * 10)
-	schdule.Destroy()
+	schdule.Start()
+	time.Sleep(time.Second * 5)
+	schdule.Stop()
 }
